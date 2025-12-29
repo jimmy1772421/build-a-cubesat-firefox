@@ -69,6 +69,8 @@ def take_photo():
     This function is NOT complete. Takes a photo when the FlatSat is shaken.
     Replace psuedocode with your own code.
     """
+    config =picam2.create_still_configuration()
+    picam2.configure(config)
     while True:
         accelx, accely, accelz = accel_gyro.acceleration
 
