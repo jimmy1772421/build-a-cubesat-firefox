@@ -88,6 +88,9 @@ def take_photo():
             git_push()
             print("photo push") 
             time.sleep(0.2) 
+        
+        #debugging code
+        print("nothing is happening")
 
         time.sleep(0.2)          
         
