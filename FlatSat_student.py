@@ -85,7 +85,7 @@ def take_photo():
             #TAKE PHOT
             img_path = img_gen(name)
             picam2.capture_file(img_path) 
-            print("photo taken")
+            print(f"photo taken {img_path}")
             #PUSH PHOTO TO GITHUB
             git_push()
             print("photo push") 
