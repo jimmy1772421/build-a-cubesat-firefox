@@ -23,8 +23,8 @@ from picamera2 import Picamera2
 
 #VARIABLES
 THRESHOLD = 158      #Any desired value from the accelerometer
-REPO_PATH = ""     #Your github repo path: ex. /home/pi/FlatSatChallenge
-FOLDER_PATH = ""   #Your image folder path in your GitHub repo: ex. /Images
+REPO_PATH = "home/pi/build-a-cubesat-firefox"     #Your github repo path: ex. /home/pi/FlatSatChallenge
+FOLDER_PATH = "/images"   #Your image folder path in your GitHub repo: ex. /Images
 
 #imu and camera initialization
 i2c = board.I2C()
@@ -73,10 +73,23 @@ def take_photo():
         accelx, accely, accelz = accel_gyro.acceleration
 
         #CHECKS IF READINGS ARE ABOVE THRESHOLD
+        if accelx > THRESHOLD or accelz > THRESHOLD or accely > THRESHOLD:
             #PAUSE
-            #name = ""     #First Name, Last Initial  ex. MasonM
-            #TAKE PHOTO
+            print("above threshold -taking photo") 
+            time.sleep(0.1)
+            picam2.start 
+            time.sleep(0.5)
+            name = "ElijahD"     #First Name, Last Initial  ex. MasonM
+            #TAKE PHOT
+            img_path = img_gen(name)
+            picam2.capture_file(img_path) 
+            print("photo taken")
             #PUSH PHOTO TO GITHUB
+            git_push()
+            print("photo push") 
+            time.sleep(0.2) 
+
+        time.sleep(0.2)          
         
         #PAUSE
 
