@@ -90,7 +90,7 @@ def take_photo():
             time.sleep(0.2) 
         
         #debugging code
-        print("nothing is happening")
+        print("nothing is happening" + accelx +".  " +accely+ "     " + accelz)
 
         time.sleep(0.2)          
         
