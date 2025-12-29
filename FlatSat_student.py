@@ -20,12 +20,11 @@ from adafruit_lsm6ds.lsm6dsox import LSM6DSOX as LSM6DS
 from adafruit_lis3mdl import LIS3MDL
 from git import Repo
 from picamera2 import Picamera2
-import os
 
 #VARIABLES
 THRESHOLD = 15      #Any desired value from the accelerometer
 REPO_PATH = "/home/firefox33/build-a-cubesat-firefox"     #Your github repo path: ex. /home/pi/FlatSatChallenge
-FOLDER_PATH = "Images"   #Your image folder path in your GitHub repo: ex. /Images
+FOLDER_PATH = "/Images"   #Your image folder path in your GitHub repo: ex. /Images
 
 #imu and camera initialization
 i2c = board.I2C()
@@ -36,34 +35,21 @@ picam2 = Picamera2()
 
 def git_push():
     """
-    Stages, commits, and pushes new images to your GitHub repo.
+    This function is complete. Stages, commits, and pushes new images to your GitHub repo.
     """
     try:
-        print(f"[git_push] Using REPO_PATH={REPO_PATH}")
-        print(f"[git_push] Using FOLDER_PATH={FOLDER_PATH}")
-
         repo = Repo(REPO_PATH)
         origin = repo.remote('origin')
-        print('[git_push] Found remote:', origin.name)
-
+        print('added remote')
         origin.pull()
-        print('[git_push] Pulled changes')
-
-        folder_full = os.path.join(REPO_PATH, FOLDER_PATH)
-        print('[git_push] Adding folder:', folder_full)
-        repo.git.add(folder_full)
-
-        if repo.is_dirty():
-            repo.index.commit('New Photo')
-            print('[git_push] Made the commit')
-            origin.push()
-            print('[git_push] Pushed changes')
-        else:
-            print('[git_push] No changes to commit')
-
-    except Exception as e:
-        print("Couldn't upload to git. Error was:")
-        print(repr(e))
+        print('pulled changes')
+        repo.git.add(REPO_PATH + FOLDER_PATH)
+        repo.index.commit('New Photo')
+        print('made the commit')
+        origin.push()
+        print('pushed changes')
+    except:
+        print('Couldn\'t upload to git')
 
 
 def img_gen(name):
