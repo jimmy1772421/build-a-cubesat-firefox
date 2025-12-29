@@ -80,7 +80,7 @@ def take_photo():
             print("above threshold -taking photo") 
             time.sleep(0.1)
             picam2.start() 
-            time.sleep(0.5)
+            time.sleep(2)
             name = "ElijahD"     #First Name, Last Initial  ex. MasonM
             #TAKE PHOT
             img_path = img_gen(name)
