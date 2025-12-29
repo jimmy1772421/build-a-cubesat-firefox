@@ -23,7 +23,7 @@ from picamera2 import Picamera2
 
 #VARIABLES
 THRESHOLD = 15      #Any desired value from the accelerometer
-REPO_PATH = "/home/pi/build-a-cubesat-firefox"     #Your github repo path: ex. /home/pi/FlatSatChallenge
+REPO_PATH = "/home/firefox33/build-a-cubesat-firefox"     #Your github repo path: ex. /home/pi/FlatSatChallenge
 FOLDER_PATH = "Images"   #Your image folder path in your GitHub repo: ex. /Images
 
 #imu and camera initialization
