@@ -12,7 +12,7 @@ You will need to complete the take_photo() function and configure the VARIABLES 
 
 #AUTHOR: 
 #DATE:
-
+ 
 #import libraries
 import time
 import board
