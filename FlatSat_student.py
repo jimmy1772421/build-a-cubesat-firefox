@@ -22,9 +22,9 @@ from git import Repo
 from picamera2 import Picamera2
 
 #VARIABLES
-THRESHOLD = 15      #Any desired value from the accelerometer
-REPO_PATH = "/home/firefox33/build-a-cubesat-firefox"     #Your github repo path: ex. /home/pi/FlatSatChallenge
-FOLDER_PATH = "/Images"   #Your image folder path in your GitHub repo: ex. /Images
+THRESHOLD = 0      #Any desired value from the accelerometer
+REPO_PATH = ""     #Your github repo path: ex. /home/pi/FlatSatChallenge
+FOLDER_PATH = ""   #Your image folder path in your GitHub repo: ex. /Images
 
 #imu and camera initialization
 i2c = board.I2C()
@@ -69,32 +69,14 @@ def take_photo():
     This function is NOT complete. Takes a photo when the FlatSat is shaken.
     Replace psuedocode with your own code.
     """
-    config =picam2.create_still_configuration()
-    picam2.configure(config)
     while True:
         accelx, accely, accelz = accel_gyro.acceleration
 
         #CHECKS IF READINGS ARE ABOVE THRESHOLD
-        if accelx > THRESHOLD or accelz > THRESHOLD or accely > THRESHOLD:
             #PAUSE
-            print("above threshold -taking photo") 
-            time.sleep(0.1)
-            picam2.start() 
-            time.sleep(2)
-            name = "ElijahD"     #First Name, Last Initial  ex. MasonM
-            #TAKE PHOT
-            img_path = img_gen(name)
-            picam2.capture_file(img_path) 
-            print(f"photo taken {img_path}")
+            #name = ""     #First Name, Last Initial  ex. MasonM
+            #TAKE PHOTO
             #PUSH PHOTO TO GITHUB
-            git_push()
-            print("photo push") 
-            time.sleep(0.2) 
-        
-        #debugging code
-        print(f"nothing is happening {accelx}. {accely} {accelz}")
-
-        time.sleep(0.2)          
         
         #PAUSE
 
