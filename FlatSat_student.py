@@ -71,6 +71,10 @@ def take_photo():
     """
     while True:
         accelx, accely, accelz = accel_gyro.acceleration
+        if accelx > THRESHOLD or accely > THRESHOLD or accelz > THRESHOLD:
+            picam2.start()
+            time.sleep(0.5)
+            picam2.capture_file("11.jpg")            
 
         #CHECKS IF READINGS ARE ABOVE THRESHOLD
             #PAUSE
