@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import os
 import time
@@ -37,6 +36,9 @@ DIFF_THRESHOLD = 25
 KERNEL_SIZE = 5
 MIN_BLOB_AREA = 250
 USE_CLAHE = False    # can make halos worse; start False
+
+# Brightest-square tuning (raw image)
+BRIGHT_WIN = 80      # size of the brightest square (pixels). Try 50–150.
 
 # Optional: how often to write live images to /tmp
 LIVE_WRITE_EVERY_N_FRAMES = 3
@@ -94,6 +96,18 @@ def compute_change(ref_g: np.ndarray, cur_bgr: np.ndarray):
     changed_pct = 100.0 * float((cleaned > 0).mean())
     return cleaned, overlay, changed_pct
 
+def brightest_square(bgr, win=80):
+    """
+    Find the window with the highest mean brightness in the raw image.
+    Returns (x, y, win, score).
+    """
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    mean = cv2.boxFilter(gray, ddepth=-1, ksize=(win, win), normalize=True)
+    _, _, _, maxLoc = cv2.minMaxLoc(mean)
+    x, y = maxLoc
+    score = float(mean[y, x])
+    return x, y, win, score
+
 def consume_flag(path: str) -> bool:
     """Return True if file exists, and remove it (one-shot command)."""
     if os.path.exists(path):
@@ -104,7 +118,7 @@ def consume_flag(path: str) -> bool:
         return True
     return False
 
-def save_bundle(save_root: str, ref_bgr, cur_bgr, mask, overlay, changed_pct: float):
+def save_bundle(save_root: str, ref_bgr, cur_bgr, mask, overlay, changed_pct: float, ref_bright, cur_bright):
     stamp = time.strftime("%Y%m%d_%H%M%S")
     out_dir = os.path.join(save_root, stamp)
     os.makedirs(out_dir, exist_ok=True)
@@ -122,6 +136,15 @@ def save_bundle(save_root: str, ref_bgr, cur_bgr, mask, overlay, changed_pct: fl
         f.write(f"min_blob_area={MIN_BLOB_AREA}\n")
         f.write(f"use_clahe={USE_CLAHE}\n")
         f.write(f"res={RES}\n")
+        f.write(f"bright_win={BRIGHT_WIN}\n")
+
+        if ref_bright is not None:
+            rx, ry, rs, rscore = ref_bright
+            f.write(f"ref_bright_x={rx}\nref_bright_y={ry}\nref_bright_s={rs}\nref_bright_score={rscore:.6f}\n")
+
+        if cur_bright is not None:
+            bx, by, bs, bscore = cur_bright
+            f.write(f"cur_bright_x={bx}\ncur_bright_y={by}\ncur_bright_s={bs}\ncur_bright_score={bscore:.6f}\n")
 
     print(f"✅ Saved bundle to: {out_dir}")
 
@@ -151,10 +174,13 @@ def main():
     print(f"  Clear reference: touch {FLAG_CLEAR_REF}")
     print(f"  Save bundle:     touch {FLAG_SAVE}")
     print(f"  Quit:            touch {FLAG_QUIT}")
+    print("Keyboard shortcuts (GUI windows focused): r=set ref, c=clear, s=save, q=quit")
     print(f"Live outputs: {LIVE_DIR}/overlay.jpg  {LIVE_DIR}/mask.png  {LIVE_DIR}/status.txt\n")
 
     ref_bgr = None
     ref_g = None
+    ref_bright = None
+    cur_bright = None
 
     frame_i = 0
 
@@ -170,35 +196,56 @@ def main():
         if consume_flag(FLAG_CLEAR_REF):
             ref_bgr = None
             ref_g = None
+            ref_bright = None
             print("Reference cleared.")
 
         if consume_flag(FLAG_SET_REF):
             ref_bgr = cur_bgr.copy()
             ref_g = preprocess_gray(ref_bgr)
-            print("Reference set.")
+
+            # record brightest square in reference + draw it on ref_bgr
+            ref_bright = brightest_square(ref_bgr, win=BRIGHT_WIN)
+            rx, ry, rs, rscore = ref_bright
+            cv2.rectangle(ref_bgr, (rx, ry), (rx+rs, ry+rs), (0, 255, 255), 2)
+            cv2.putText(ref_bgr, f"ref_bright={rscore:.1f}",
+                        (rx, max(0, ry-8)), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+            print("Reference set (brightest square recorded).")
 
         # compute outputs
         if ref_g is None:
             h, w = cur_bgr.shape[:2]
             mask = np.zeros((h, w), dtype=np.uint8)
-            overlay = cur_bgr
+            overlay = cur_bgr.copy()
             changed_pct = 0.0
         else:
             mask, overlay, changed_pct = compute_change(ref_g, cur_bgr)
+
+        # Brightest square on current RAW image + draw on overlay + mask
+        cur_bright = brightest_square(cur_bgr, win=BRIGHT_WIN)
+        bx, by, bs, bscore = cur_bright
+
+        cv2.rectangle(overlay, (bx, by), (bx+bs, by+bs), (0, 255, 255), 2)
+        cv2.putText(overlay, f"bright={bscore:.1f}",
+                    (bx, max(0, by-8)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+        cv2.rectangle(mask, (bx, by), (bx+bs, by+bs), 255, 2)
 
         # save on command
         if consume_flag(FLAG_SAVE):
             if ref_bgr is None:
                 print("⚠️ Cannot save: reference not set. Run: touch", FLAG_SET_REF)
             else:
-                save_bundle(SAVE_ROOT_DIR, ref_bgr, cur_bgr, mask, overlay, changed_pct)
+                save_bundle(SAVE_ROOT_DIR, ref_bgr, cur_bgr, mask, overlay, changed_pct, ref_bright, cur_bright)
 
         # stream outputs (GUI)
         if SHOW_GUI:
             cv2.imshow("camera (raw)", cur_bgr)
             cv2.imshow("change overlay", overlay)
             cv2.imshow("change mask", mask)
-            # also allow keyboard control if you want
+
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 print("Quit (keyboard).")
@@ -206,16 +253,25 @@ def main():
             elif key == ord('r'):
                 ref_bgr = cur_bgr.copy()
                 ref_g = preprocess_gray(ref_bgr)
-                print("Reference set (keyboard).")
+
+                ref_bright = brightest_square(ref_bgr, win=BRIGHT_WIN)
+                rx, ry, rs, rscore = ref_bright
+                cv2.rectangle(ref_bgr, (rx, ry), (rx+rs, ry+rs), (0, 255, 255), 2)
+                cv2.putText(ref_bgr, f"ref_bright={rscore:.1f}",
+                            (rx, max(0, ry-8)), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+                print("Reference set (keyboard, brightest recorded).")
             elif key == ord('c'):
                 ref_bgr = None
                 ref_g = None
+                ref_bright = None
                 print("Reference cleared (keyboard).")
             elif key == ord('s'):
                 if ref_bgr is None:
                     print("⚠️ Cannot save: reference not set.")
                 else:
-                    save_bundle(SAVE_ROOT_DIR, ref_bgr, cur_bgr, mask, overlay, changed_pct)
+                    save_bundle(SAVE_ROOT_DIR, ref_bgr, cur_bgr, mask, overlay, changed_pct, ref_bright, cur_bright)
 
         # stream outputs (headless-friendly files)
         frame_i += 1
