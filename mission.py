@@ -45,6 +45,7 @@ WAKE_DELAY_SEC = 30
 NODE_READY_TIMEOUT_SEC = 45
 SAVE_TIMEOUT_SEC = 45
 ALARM_REPEAT_NONE = 0
+PISUGAR_SOCKET_TIMEOUT_SEC = 2
 
 
 @dataclass
@@ -314,17 +315,30 @@ def pisugar_send(command: str) -> str:
     if not os.path.exists(PISUGAR_SOCKET):
         raise RuntimeError(f"PiSugar socket not found at {PISUGAR_SOCKET}")
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(PISUGAR_SOCKET_TIMEOUT_SEC)
         client.connect(PISUGAR_SOCKET)
         client.sendall((command.strip() + "\n").encode("utf-8"))
         client.shutdown(socket.SHUT_WR)
-        return client.recv(4096).decode("utf-8", errors="replace").strip()
+        chunks = []
+        while True:
+            try:
+                chunk = client.recv(4096)
+            except socket.timeout:
+                break
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks).decode("utf-8", errors="replace").strip()
 
 
 def schedule_wake_and_shutdown(pass_id: str) -> None:
     wake_time = datetime.now(timezone.utc) + timedelta(seconds=WAKE_DELAY_SEC)
-    wake_iso = wake_time.replace(microsecond=0).isoformat()
+    wake_iso = wake_time.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
     append_log(pass_id, f"Scheduling PiSugar wake for {wake_iso}")
-    pisugar_send("rtc_pi2rtc")
+    clean_response = pisugar_send("rtc_clean_flag")
+    append_log(pass_id, f"PiSugar clean flag: {clean_response or 'ok'}")
+    sync_response = pisugar_send("rtc_pi2rtc")
+    append_log(pass_id, f"PiSugar sync clock: {sync_response or 'ok'}")
     response = pisugar_send(f"rtc_alarm_set {wake_iso} {ALARM_REPEAT_NONE}")
     append_log(pass_id, f"PiSugar response: {response or 'ok'}")
     append_log(pass_id, "Requesting system shutdown")
@@ -387,12 +401,12 @@ def resume_post_reboot_cycle(state: MissionState) -> None:
 
 def run_mission() -> None:
     ensure_dirs()
+    sync_repo(None, push=False)
     state = load_state()
     state.boot_count += 1
     state.last_boot_utc = iso_now()
     save_state(state)
 
-    sync_repo(state.current_pass, push=False)
     node = start_change_node()
     try:
         while True:
