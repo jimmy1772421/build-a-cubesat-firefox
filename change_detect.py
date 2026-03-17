@@ -22,15 +22,8 @@ SHOW_GUI = False
 DIFF_THRESHOLD = 25
 KERNEL_SIZE = 5
 MIN_BLOB_AREA = 250
-<<<<<<< Updated upstream
 USE_CLAHE = False
 BRIGHT_WIN = 80
-=======
-USE_CLAHE = False    # can make halos worse; start False
-BRIGHT_WIN =80 #size of brightest square
-
-# Optional: how often to write live images to /tmp
->>>>>>> Stashed changes
 LIVE_WRITE_EVERY_N_FRAMES = 3
 
 RUNTIME_REF_PATH = os.path.join(RUNTIME_DIR, "reference_fullres.png")
@@ -194,16 +187,6 @@ def annotate_bright_square(image: np.ndarray, bright):
     )
 
 
-<<<<<<< Updated upstream
-=======
-def brightest_square(bgr, win = 80):
-	"""
-
-	"""
-# -------------------------
-# Main
-# -------------------------
->>>>>>> Stashed changes
 def main():
     picam2 = Picamera2()
     config = picam2.create_preview_configuration(main={"format": "RGB888", "size": CAMERA_RES})

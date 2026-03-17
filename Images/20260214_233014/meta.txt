@@ -1,0 +1,6 @@
+changed_pct=0.000000
+diff_threshold=25
+kernel_size=5
+min_blob_area=250
+use_clahe=False
+res=(960, 540)
