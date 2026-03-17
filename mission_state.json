@@ -1,8 +1,8 @@
 {
   "phase": "POWERDOWN_PENDING",
   "current_pass": "P001",
-  "boot_count": 1,
-  "last_boot_utc": "2026-03-17T22:49:55+00:00",
+  "boot_count": 2,
+  "last_boot_utc": "2026-03-17T22:56:01+00:00",
   "last_action": "Scheduling PiSugar wake and powering down",
   "last_completed_pass": null
 }
