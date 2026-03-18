@@ -332,14 +332,8 @@ def pisugar_send(command: str) -> str:
 
 
 def schedule_wake_and_shutdown(pass_id: str) -> None:
-    wake_time = datetime.now(timezone.utc) + timedelta(seconds=WAKE_DELAY_SEC)
-    wake_iso = wake_time.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
-    append_log(pass_id, f"Scheduling PiSugar wake for {wake_iso}")
-    clean_response = pisugar_send("rtc_clean_flag")
-    append_log(pass_id, f"PiSugar clean flag: {clean_response or 'ok'}")
-    sync_response = pisugar_send("rtc_pi2rtc")
-    append_log(pass_id, f"PiSugar sync clock: {sync_response or 'ok'}")
-    response = pisugar_send(f"rtc_alarm_set {wake_iso} {ALARM_REPEAT_NONE}")
+    append_log(pass_id, "Scheduling PiSugar test wake")
+    response = pisugar_send("rtc_test_wake")
     append_log(pass_id, f"PiSugar response: {response or 'ok'}")
     append_log(pass_id, "Requesting system shutdown")
     subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
@@ -359,12 +353,8 @@ def start_reference_cycle(state: MissionState) -> None:
     touch_flag(FLAG_SET_REF)
     append_log(pass_id, "Reference image captured")
 
-    state.phase = "await_post_reboot_capture"
-    state.last_action = "Reference image captured; waiting for reboot cycle"
-    save_state(state)
-
     time.sleep(PRE_SHUTDOWN_DELAY_SEC)
-    set_state(state, "POWERDOWN_PENDING", "Scheduling PiSugar wake and powering down")
+    set_state(state, "await_post_reboot_capture", "Reference image captured; waiting for reboot cycle")
     append_log(pass_id, "Preparing PiSugar shutdown and reboot")
     schedule_wake_and_shutdown(pass_id)
 
