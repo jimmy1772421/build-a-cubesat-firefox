@@ -197,19 +197,28 @@ def list_timestamp_dirs() -> set[str]:
 def wait_for_new_bundle(existing: set[str]) -> Path:
     required = {"mask.png", "ref_fullres.png", "cur_fullres.png"}
 
+    def bundle_ready(candidate: Path) -> bool:
+        present = {path.name for path in candidate.iterdir() if path.is_file()}
+        if not required.issubset(present):
+            return False
+        if cv2 is None:
+            return True
+        mask = cv2.imread(str(candidate / "mask.png"), cv2.IMREAD_GRAYSCALE)
+        ref_fullres = cv2.imread(str(candidate / "ref_fullres.png"), cv2.IMREAD_COLOR)
+        cur_fullres = cv2.imread(str(candidate / "cur_fullres.png"), cv2.IMREAD_COLOR)
+        return mask is not None and ref_fullres is not None and cur_fullres is not None
+
     def bundle_created() -> bool:
         for name in sorted(list_timestamp_dirs() - existing):
             candidate = IMAGES_DIR / name
-            present = {path.name for path in candidate.iterdir() if path.is_file()}
-            if required.issubset(present):
+            if bundle_ready(candidate):
                 return True
         return False
 
     wait_for(bundle_created, SAVE_TIMEOUT_SEC, "change-detect save bundle")
     for name in sorted(list_timestamp_dirs() - existing, reverse=True):
         candidate = IMAGES_DIR / name
-        present = {path.name for path in candidate.iterdir() if path.is_file()}
-        if required.issubset(present):
+        if bundle_ready(candidate):
             return candidate
     raise RuntimeError("Change-detect bundle directory appeared, but required files were not ready")
 
