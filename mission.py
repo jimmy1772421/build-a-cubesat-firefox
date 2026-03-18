@@ -81,8 +81,12 @@ def load_state() -> MissionState:
 
 
 def save_state(state: MissionState) -> None:
-    with STATE_PATH.open("w", encoding="utf-8") as handle:
+    temp_path = STATE_PATH.with_suffix(".json.tmp")
+    with temp_path.open("w", encoding="utf-8") as handle:
         json.dump(asdict(state), handle, indent=2)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temp_path, STATE_PATH)
 
 
 def append_log(pass_id: Optional[str], message: str) -> None:
@@ -191,12 +195,23 @@ def list_timestamp_dirs() -> set[str]:
 
 
 def wait_for_new_bundle(existing: set[str]) -> Path:
+    required = {"mask.png", "ref_fullres.png", "cur_fullres.png"}
+
     def bundle_created() -> bool:
-        return bool(list_timestamp_dirs() - existing)
+        for name in sorted(list_timestamp_dirs() - existing):
+            candidate = IMAGES_DIR / name
+            present = {path.name for path in candidate.iterdir() if path.is_file()}
+            if required.issubset(present):
+                return True
+        return False
 
     wait_for(bundle_created, SAVE_TIMEOUT_SEC, "change-detect save bundle")
-    new_dirs = sorted(list_timestamp_dirs() - existing)
-    return IMAGES_DIR / new_dirs[-1]
+    for name in sorted(list_timestamp_dirs() - existing, reverse=True):
+        candidate = IMAGES_DIR / name
+        present = {path.name for path in candidate.iterdir() if path.is_file()}
+        if required.issubset(present):
+            return candidate
+    raise RuntimeError("Change-detect bundle directory appeared, but required files were not ready")
 
 
 def largest_component(mask: np.ndarray) -> Optional[dict]:
