@@ -112,21 +112,30 @@ def git_run(*args: str, check: bool = True) -> subprocess.CompletedProcess:
     )
 
 
+def repo_is_dirty() -> bool:
+    status = git_run("status", "--porcelain", check=False)
+    return bool(status.stdout.strip())
+
+
 def sync_repo(pass_id: Optional[str], push: bool = False) -> None:
-    try:
-        git_run("pull", "--rebase")
-        append_log(pass_id, "Git pull completed")
-    except subprocess.CalledProcessError as exc:
-        append_log(pass_id, f"Git pull failed: {exc.stderr.strip() or exc.stdout.strip()}")
-        return
-
     if not push:
+        if repo_is_dirty():
+            append_log(pass_id, "Git pull skipped: repo is dirty")
+            return
+        try:
+            git_run("pull", "--rebase")
+            append_log(pass_id, "Git pull completed")
+        except subprocess.CalledProcessError as exc:
+            append_log(pass_id, f"Git pull failed: {exc.stderr.strip() or exc.stdout.strip()}")
         return
 
     try:
-        git_run("add", "Images", "mission_state.json")
+        paths = ["mission_state.json", "Images/Log.txt"]
+        if pass_id:
+            paths.append(f"Images/{pass_id}")
+        git_run("add", *paths)
         staged = subprocess.run(
-            ["git", "diff", "--cached", "--quiet", "--", "Images", "mission_state.json"],
+            ["git", "diff", "--cached", "--quiet", "--", *paths],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
@@ -136,7 +145,11 @@ def sync_repo(pass_id: Optional[str], push: bool = False) -> None:
             append_log(pass_id, "Git push skipped: no changes")
             return
         git_run("commit", "-m", f"Mission update {pass_id or iso_now()}")
-        git_run("push")
+        push_result = git_run("push", check=False)
+        if push_result.returncode != 0:
+            append_log(pass_id, f"Git push retry after rebase: {push_result.stderr.strip() or push_result.stdout.strip()}")
+            git_run("pull", "--rebase")
+            git_run("push")
         append_log(pass_id, "Git push completed")
     except subprocess.CalledProcessError as exc:
         append_log(pass_id, f"Git push failed: {exc.stderr.strip() or exc.stdout.strip()}")
