@@ -1,0 +1,34 @@
+{
+  "pass_id": "P004",
+  "binary_id": "BM-P004",
+  "bundle_source": "20260319_011330",
+  "generated_utc": "2026-03-19T05:13:37+00:00",
+  "largest_component_lowres": {
+    "x": 326,
+    "y": 320,
+    "w": 214,
+    "h": 159,
+    "area": 14149
+  },
+  "largest_component_fullres": {
+    "x": 1565,
+    "y": 1536,
+    "w": 1027,
+    "h": 763,
+    "area": 14149
+  },
+  "roi_box": {
+    "x": 1194,
+    "y": 862,
+    "width": 1770,
+    "height": 1730
+  },
+  "mask_size": {
+    "width": 960,
+    "height": 540
+  },
+  "image_size": {
+    "width": 4608,
+    "height": 2592
+  }
+}
