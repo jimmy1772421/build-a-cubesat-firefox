@@ -1,8 +1,8 @@
 {
   "phase": "DOWNLINK",
-  "current_pass": "P001",
-  "boot_count": 4,
-  "last_boot_utc": "2026-03-19T04:18:42+00:00",
+  "current_pass": "P002",
+  "boot_count": 5,
+  "last_boot_utc": "2026-03-19T04:44:29+00:00",
   "last_action": "Syncing mission artifacts to GitHub",
-  "last_completed_pass": null
+  "last_completed_pass": "P001"
 }
