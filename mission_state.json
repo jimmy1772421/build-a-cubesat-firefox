@@ -1,8 +1,8 @@
 {
-  "phase": "POWERDOWN_PENDING",
+  "phase": "DOWNLINK",
   "current_pass": "P001",
-  "boot_count": 2,
-  "last_boot_utc": "2026-03-17T22:56:01+00:00",
-  "last_action": "Scheduling PiSugar wake and powering down",
+  "boot_count": 4,
+  "last_boot_utc": "2026-03-19T04:18:42+00:00",
+  "last_action": "Syncing mission artifacts to GitHub",
   "last_completed_pass": null
 }
