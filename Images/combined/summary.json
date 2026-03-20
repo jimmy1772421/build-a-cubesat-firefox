@@ -1,0 +1,33 @@
+{
+  "entries_used": [
+    {
+      "id": "20260214_233014",
+      "mask": "Images\\20260214_233014\\mask.png",
+      "base": "Images\\20260214_233014\\cur.png",
+      "source": "timestamp"
+    },
+    {
+      "id": "20260214_233914",
+      "mask": "Images\\20260214_233914\\mask.png",
+      "base": "Images\\20260214_233914\\cur.png",
+      "source": "timestamp"
+    },
+    {
+      "id": "20260317_184453",
+      "mask": "Images\\20260317_184453\\mask.png",
+      "base": "Images\\20260317_184453\\cur_fullres.png",
+      "source": "timestamp"
+    }
+  ],
+  "entry_count": 3,
+  "max_overlap_count": 1,
+  "image_size": {
+    "width": 4608,
+    "height": 2592
+  },
+  "outputs": {
+    "combined_mask": "Images\\combined\\combined_mask.png",
+    "combined_count": "Images\\combined\\combined_count.png",
+    "combined_overlay": "Images\\combined\\combined_overlay.png"
+  }
+}

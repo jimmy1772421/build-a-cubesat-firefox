@@ -262,23 +262,14 @@ def clamp_box(x: int, y: int, width: int, height: int, image_w: int, image_h: in
 
 def roi_box_for_component(component: Optional[dict], image_shape: tuple[int, int, int]) -> tuple[int, int, int, int]:
     image_h, image_w = image_shape[:2]
-    target_ratio = ROI_WIDTH / ROI_HEIGHT
     if component is None:
         width = min(ROI_WIDTH, image_w)
         height = min(ROI_HEIGHT, image_h)
         return clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
 
-    cx = component["x"] + component["w"] / 2.0
-    cy = component["y"] + component["h"] / 2.0
-    width = max(ROI_WIDTH, component["w"])
-    height = max(ROI_HEIGHT, component["h"])
-    if width / height > target_ratio:
-        height = int(round(width / target_ratio))
-    else:
-        width = int(round(height * target_ratio))
-    width = min(width, image_w)
-    height = min(height, image_h)
-    return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
+    width = min(max(1, component["w"]), image_w)
+    height = min(max(1, component["h"]), image_h)
+    return clamp_box(component["x"], component["y"], width, height, image_w, image_h)
 
 
 def scale_component(component: Optional[dict], src_shape: tuple[int, int], dst_shape: tuple[int, int, int]) -> Optional[dict]:
