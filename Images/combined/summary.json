@@ -1,26 +1,26 @@
 {
   "entries_used": [
     {
-      "id": "20260214_233014",
-      "mask": "Images\\20260214_233014\\mask.png",
-      "base": "Images\\20260214_233014\\cur.png",
-      "source": "timestamp"
+      "id": "P001",
+      "mask": "Images\\P001\\BM-P001.png",
+      "base": "Images\\P001\\current.png",
+      "source": "pass"
     },
     {
-      "id": "20260214_233914",
-      "mask": "Images\\20260214_233914\\mask.png",
-      "base": "Images\\20260214_233914\\cur.png",
-      "source": "timestamp"
+      "id": "P002",
+      "mask": "Images\\P002\\BM-P002.png",
+      "base": "Images\\P002\\current.png",
+      "source": "pass"
     },
     {
-      "id": "20260317_184453",
-      "mask": "Images\\20260317_184453\\mask.png",
-      "base": "Images\\20260317_184453\\cur_fullres.png",
-      "source": "timestamp"
+      "id": "P003",
+      "mask": "Images\\P003\\BM-P003.png",
+      "base": "Images\\P003\\current.png",
+      "source": "pass"
     }
   ],
   "entry_count": 3,
-  "max_overlap_count": 1,
+  "max_overlap_count": 3,
   "image_size": {
     "width": 4608,
     "height": 2592

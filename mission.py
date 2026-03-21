@@ -36,8 +36,8 @@ FLAG_QUIT = Path("/tmp/change_quit")
 LIVE_STATUS = Path("/tmp/change_live/status.txt")
 PISUGAR_SOCKET = "/tmp/pisugar-server.sock"
 
-ROI_WIDTH = 1770
-ROI_HEIGHT = 1730
+ROI_WIDTH = 1060
+ROI_HEIGHT = 1040
 REFERENCE_DELAY_SEC = 15
 PRE_SHUTDOWN_DELAY_SEC = 10
 POST_REBOOT_CAPTURE_DELAY_SEC = 15
@@ -262,14 +262,16 @@ def clamp_box(x: int, y: int, width: int, height: int, image_w: int, image_h: in
 
 def roi_box_for_component(component: Optional[dict], image_shape: tuple[int, int, int]) -> tuple[int, int, int, int]:
     image_h, image_w = image_shape[:2]
+    scale_x = image_w / 4608.0
+    scale_y = image_h / 2592.0
+    width = min(max(1, int(round(ROI_WIDTH * scale_x))), image_w)
+    height = min(max(1, int(round(ROI_HEIGHT * scale_y))), image_h)
     if component is None:
-        width = min(ROI_WIDTH, image_w)
-        height = min(ROI_HEIGHT, image_h)
         return clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
 
-    width = min(max(1, component["w"]), image_w)
-    height = min(max(1, component["h"]), image_h)
-    return clamp_box(component["x"], component["y"], width, height, image_w, image_h)
+    cx = component["x"] + component["w"] / 2.0
+    cy = component["y"] + component["h"] / 2.0
+    return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
 
 
 def scale_component(component: Optional[dict], src_shape: tuple[int, int], dst_shape: tuple[int, int, int]) -> Optional[dict]:
