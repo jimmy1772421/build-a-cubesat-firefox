@@ -1,8 +1,8 @@
 {
-  "phase": "await_reference",
-  "current_pass": null,
-  "boot_count": 0,
-  "last_boot_utc": null,
-  "last_action": "Mission state initialized",
+  "phase": "DOWNLINK",
+  "current_pass": "P001",
+  "boot_count": 2,
+  "last_boot_utc": "2026-03-21T21:38:23+00:00",
+  "last_action": "Syncing mission artifacts to GitHub",
   "last_completed_pass": null
 }
