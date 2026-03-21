@@ -1,0 +1,16 @@
+changed_pct=72.309028
+camera_res=(4608, 2592)
+proc_res=(960, 540)
+diff_threshold=25
+kernel_size=5
+min_blob_area=250
+use_clahe=False
+bright_win=80
+ref_bright_x=448
+ref_bright_y=366
+ref_bright_s=80
+ref_bright_score=144.597656
+cur_bright_x=959
+cur_bright_y=189
+cur_bright_s=80
+cur_bright_score=236.887497
