@@ -213,7 +213,7 @@ def annotate_white_square(image: np.ndarray, white_info):
         return
 
     x, y, size, count, ratio = white_info
-    cv2.rectangle(image, (x, y), (x + size, y + size), (0, 255, 255), 2)
+    cv2.rectangle(image, (x, y), (x + size, y + size), (255, 255, 255), 2)
     cv2.putText(
         image,
         f"white={count} ({ratio:.1%})",
@@ -279,14 +279,13 @@ def main():
             mask, overlay, changed_pct = compute_change(ref_g, cur_proc_bgr)
 
         cur_white = whitest_square(cur_proc_bgr, win=WHITE_WIN)
-        annotate_white_square(overlay, cur_white)
-        cv2.rectangle(
-            mask,
-            (cur_white[0], cur_white[1]),
-            (cur_white[0] + cur_white[2], cur_white[1] + cur_white[2]),
-            255,
-            2,
-        )
+     #   annotate_white_square(overlay, cur_white)
+          ##  mask,
+            #    (cur_white[0], cur_white[1]),
+             #   (cur_white[0] + cur_white[2], cur_white[1] + cur_white[2]),
+              #  255,
+               # 2,
+           # )
 
         if consume_flag(FLAG_SAVE):
             if ref_g is None or ref_fullres_bgr is None:
