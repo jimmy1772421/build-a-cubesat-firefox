@@ -11,6 +11,7 @@ CAMERA_RES = (4608, 2592)
 PROC_RES = (960, 540)
 BOX_WIDTH_FULLRES = 1060
 BOX_HEIGHT_FULLRES = 1040
+SAFE_THRESHOLD = 200
 
 DIFF_THRESHOLD = 25
 KERNEL_SIZE = 5
@@ -110,6 +111,34 @@ def fixed_box(component: Optional[dict], image_shape: tuple[int, int, int]) -> t
     return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
 
 
+def safe_mask_from_image(bgr: np.ndarray) -> np.ndarray:
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    _, safe = cv2.threshold(gray, SAFE_THRESHOLD, 255, cv2.THRESH_BINARY)
+    kernel = np.ones((5, 5), np.uint8)
+    safe = cv2.morphologyEx(safe, cv2.MORPH_OPEN, kernel)
+    safe = cv2.morphologyEx(safe, cv2.MORPH_CLOSE, kernel)
+    return safe
+
+
+def landing_zone_box(bgr: np.ndarray) -> tuple[int, int, int, int]:
+    image_h, image_w = bgr.shape[:2]
+    scale_x = image_w / 4608.0
+    scale_y = image_h / 2592.0
+    width = min(max(1, int(round(BOX_WIDTH_FULLRES * scale_x))), image_w)
+    height = min(max(1, int(round(BOX_HEIGHT_FULLRES * scale_y))), image_h)
+
+    safe = safe_mask_from_image(bgr)
+    kernel = np.ones((height, width), np.uint8)
+    centers = cv2.erode(safe, kernel, iterations=1)
+    if np.count_nonzero(centers) == 0:
+        return clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
+
+    distance = cv2.distanceTransform(centers, cv2.DIST_L2, 5)
+    _, _, _, max_loc = cv2.minMaxLoc(distance)
+    cx, cy = max_loc
+    return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
+
+
 def main() -> None:
     picam2 = Picamera2()
     config = picam2.create_preview_configuration(main={"format": "RGB888", "size": CAMERA_RES})
@@ -130,16 +159,14 @@ def main() -> None:
         cur_proc = fullres_to_proc(cur_fullres)
 
         display = cv2.resize(cur_fullres, (1280, 720), interpolation=cv2.INTER_AREA)
-        mask_display = np.zeros((720, 1280), dtype=np.uint8)
-        component_fullres = None
+        mask_display = cv2.resize(safe_mask_from_image(cur_fullres), (1280, 720), interpolation=cv2.INTER_NEAREST)
 
         if ref_g is not None:
             mask = compute_mask(ref_g, cur_proc)
-            component_lowres = largest_component(mask)
-            component_fullres = scale_component(component_lowres, mask.shape, cur_fullres.shape)
-            mask_display = cv2.resize(mask, (1280, 720), interpolation=cv2.INTER_NEAREST)
+            diff_display = cv2.resize(mask, (1280, 720), interpolation=cv2.INTER_NEAREST)
+            cv2.imshow("box_test_diff", diff_display)
 
-        x, y, w, h = fixed_box(component_fullres, cur_fullres.shape)
+        x, y, w, h = landing_zone_box(cur_fullres)
         scale_x = display.shape[1] / cur_fullres.shape[1]
         scale_y = display.shape[0] / cur_fullres.shape[0]
         dx = int(round(x * scale_x))
@@ -153,7 +180,7 @@ def main() -> None:
         cv2.putText(display, f"box={w}x{h}", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2, cv2.LINE_AA)
 
         cv2.imshow("box_test_camera", display)
-        cv2.imshow("box_test_mask", mask_display)
+        cv2.imshow("box_test_safe", mask_display)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):

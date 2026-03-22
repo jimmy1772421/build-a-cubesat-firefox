@@ -38,6 +38,7 @@ PISUGAR_SOCKET = "/tmp/pisugar-server.sock"
 
 ROI_WIDTH = 1060
 ROI_HEIGHT = 1040
+SAFE_THRESHOLD = 200
 REFERENCE_DELAY_SEC = 15
 PRE_SHUTDOWN_DELAY_SEC = 10
 POST_REBOOT_CAPTURE_DELAY_SEC = 15
@@ -260,17 +261,38 @@ def clamp_box(x: int, y: int, width: int, height: int, image_w: int, image_h: in
     return x, y, width, height
 
 
-def roi_box_for_component(component: Optional[dict], image_shape: tuple[int, int, int]) -> tuple[int, int, int, int]:
+def landing_box_size(image_shape: tuple[int, int, int]) -> tuple[int, int]:
     image_h, image_w = image_shape[:2]
     scale_x = image_w / 4608.0
     scale_y = image_h / 2592.0
     width = min(max(1, int(round(ROI_WIDTH * scale_x))), image_w)
     height = min(max(1, int(round(ROI_HEIGHT * scale_y))), image_h)
-    if component is None:
+    return width, height
+
+
+def safe_mask_from_image(bgr: np.ndarray) -> np.ndarray:
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    _, safe = cv2.threshold(gray, SAFE_THRESHOLD, 255, cv2.THRESH_BINARY)
+    kernel = np.ones((5, 5), np.uint8)
+    safe = cv2.morphologyEx(safe, cv2.MORPH_OPEN, kernel)
+    safe = cv2.morphologyEx(safe, cv2.MORPH_CLOSE, kernel)
+    return safe
+
+
+def landing_zone_box(bgr: np.ndarray) -> tuple[int, int, int, int]:
+    image_h, image_w = bgr.shape[:2]
+    width, height = landing_box_size(bgr.shape)
+    safe = safe_mask_from_image(bgr)
+
+    kernel = np.ones((height, width), np.uint8)
+    centers = cv2.erode(safe, kernel, iterations=1)
+
+    if np.count_nonzero(centers) == 0:
         return clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
 
-    cx = component["x"] + component["w"] / 2.0
-    cy = component["y"] + component["h"] / 2.0
+    distance = cv2.distanceTransform(centers, cv2.DIST_L2, 5)
+    _, _, _, max_loc = cv2.minMaxLoc(distance)
+    cx, cy = max_loc
     return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
 
 
@@ -299,9 +321,7 @@ def organize_bundle(pass_id: str, bundle_dir: Path) -> str:
     if mask is None or current_fullres is None:
         raise RuntimeError(f"Saved bundle in {bundle_dir} is missing required files")
 
-    component_lowres = largest_component(mask)
-    component_fullres = scale_component(component_lowres, mask.shape, current_fullres.shape)
-    x, y, w, h = roi_box_for_component(component_fullres, current_fullres.shape)
+    x, y, w, h = landing_zone_box(current_fullres)
 
     binary_id = f"BM-{pass_id}"
     shutil.move(str(bundle_dir / "ref_fullres.png"), str(folder / "reference.png"))
@@ -323,11 +343,10 @@ def organize_bundle(pass_id: str, bundle_dir: Path) -> str:
         "binary_id": binary_id,
         "bundle_source": bundle_dir.name,
         "generated_utc": iso_now(),
-        "largest_component_lowres": component_lowres,
-        "largest_component_fullres": component_fullres,
         "roi_box": {"x": x, "y": y, "width": w, "height": h},
         "mask_size": {"width": mask.shape[1], "height": mask.shape[0]},
         "image_size": {"width": current_fullres.shape[1], "height": current_fullres.shape[0]},
+        "landing_zone_method": "white-safe-area distance transform",
     }
     with (folder / "meta.json").open("w", encoding="utf-8") as handle:
         json.dump(meta, handle, indent=2)
