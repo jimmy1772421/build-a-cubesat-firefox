@@ -1,0 +1,33 @@
+{
+  "pass_id": "P003",
+  "binary_id": "BM-P003",
+  "bundle_source": "20260322_152306",
+  "generated_utc": "2026-03-22T19:23:13+00:00",
+  "roi_box": {
+    "x": 1339,
+    "y": 305,
+    "width": 1060,
+    "height": 1040
+  },
+  "bm_box": {
+    "x": 279,
+    "y": 64,
+    "width": 221,
+    "height": 217
+  },
+  "mask_size": {
+    "width": 960,
+    "height": 540
+  },
+  "image_size": {
+    "width": 4608,
+    "height": 2592
+  },
+  "landing_zone_method": "adaptive white-safe-area integral search",
+  "landing_threshold_used": 150,
+  "landing_safe_pixels": 1092241,
+  "landing_safe_density": 0.9907846516690856,
+  "landing_minimum_safe_density": 0.5,
+  "landing_selection_status": "ok",
+  "landing_selection_reason": "adaptive safe-area search"
+}
