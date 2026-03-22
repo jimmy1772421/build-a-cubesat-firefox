@@ -1,0 +1,21 @@
+{
+  "pass_id": "P021",
+  "binary_id": "BM-P021",
+  "bundle_source": "20260322_093106",
+  "generated_utc": "2026-03-22T13:31:18+00:00",
+  "roi_box": {
+    "x": 1774,
+    "y": 776,
+    "width": 1060,
+    "height": 1040
+  },
+  "mask_size": {
+    "width": 960,
+    "height": 540
+  },
+  "image_size": {
+    "width": 4608,
+    "height": 2592
+  },
+  "landing_zone_method": "white-safe-area distance transform"
+}
