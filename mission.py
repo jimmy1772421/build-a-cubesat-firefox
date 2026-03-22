@@ -319,16 +319,21 @@ def landing_zone_box(bgr: np.ndarray) -> tuple[int, int, int, int]:
     width, height = landing_box_size(bgr.shape)
     safe = safe_mask_from_image(bgr)
 
-    kernel = np.ones((height, width), np.uint8)
-    centers = cv2.erode(safe, kernel, iterations=1)
+    safe_f = (safe > 0).astype(np.float32)
+    integral = cv2.integral(safe_f)
 
-    if np.count_nonzero(centers) == 0:
-        return clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
+    y_slots = image_h - height + 1
+    x_slots = image_w - width + 1
+    counts = (
+        integral[height : height + y_slots, width : width + x_slots]
+        - integral[0:y_slots, width : width + x_slots]
+        - integral[height : height + y_slots, 0:x_slots]
+        + integral[0:y_slots, 0:x_slots]
+    )
 
-    distance = cv2.distanceTransform(centers, cv2.DIST_L2, 5)
-    _, _, _, max_loc = cv2.minMaxLoc(distance)
-    cx, cy = max_loc
-    return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
+    flat_idx = int(np.argmax(counts))
+    best_y, best_x = np.unravel_index(flat_idx, counts.shape)
+    return clamp_box(int(best_x), int(best_y), width, height, image_w, image_h)
 
 
 def scale_component(component: Optional[dict], src_shape: tuple[int, int], dst_shape: tuple[int, int, int]) -> Optional[dict]:
