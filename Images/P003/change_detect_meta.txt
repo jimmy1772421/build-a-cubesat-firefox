@@ -1,4 +1,4 @@
-changed_pct=4.258681
+changed_pct=0.106867
 camera_res=(4608, 2592)
 proc_res=(960, 540)
 diff_threshold=25
