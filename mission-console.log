@@ -1,0 +1,26 @@
+2026-03-22T19:06:05+00:00 Git pull skipped: repo is dirty
+[0:00:29.244187037] [1570] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:340 [0mlibcamera v0.6.0+rpt20251202
+[0:00:29.282544981] [1586] [1;32m INFO [1;37mIPAProxy [1;34mipa_proxy.cpp:180 [0mUsing tuning file /usr/share/libcamera/ipa/rpi/vc4/imx708.json
+[0:00:29.290031722] [1586] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:223 [0mAdding camera '/base/soc/i2c0mux/i2c@1/imx708@1a' for pipeline handler rpi/vc4
+[0:00:29.290105333] [1586] [1;32m INFO [1;37mRPI [1;34mvc4.cpp:445 [0mRegistered camera /base/soc/i2c0mux/i2c@1/imx708@1a to Unicam device /dev/media1 and ISP device /dev/media2
+[0:00:29.290165815] [1586] [1;32m INFO [1;37mRPI [1;34mpipeline_base.cpp:1111 [0mUsing configuration file '/usr/share/libcamera/pipeline/rpi/vc4/rpi_apps.yaml'
+[0:00:29.302765463] [1570] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1215 [0mconfiguring streams: (0) 4608x2592-RGB888/sRGB (1) 4608x2592-SBGGR10_CSI2P/RAW
+[0:00:29.305410537] [1586] [1;32m INFO [1;37mRPI [1;34mvc4.cpp:620 [0mSensor: /base/soc/i2c0mux/i2c@1/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10/RAW - Selected unicam format: 4608x2592-pBAA/RAW
+[P001] 2026-03-22T19:06:14+00:00 Cubesat in orbit
+[P001] 2026-03-22T19:06:43+00:00 POI locked
+libpng error: Read Error
+[P001] 2026-03-22T19:06:45+00:00 Reference image captured
+[P001] 2026-03-22T19:06:55+00:00 Preparing PiSugar shutdown and reboot
+[P001] 2026-03-22T19:06:55+00:00 Scheduling PiSugar test wake
+[P001] 2026-03-22T19:06:55+00:00 PiSugar response: rtc_test_wake: rtc_test_wake: wakeup after 1 min 30 sec
+[P001] 2026-03-22T19:06:55+00:00 Requesting system shutdown
+[P001] 2026-03-22T19:06:55+00:00 Recovery boot detected
+2026-03-22T19:07:22+00:00 Git pull skipped: repo is dirty
+[0:00:30.333794499] [1574] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:340 [0mlibcamera v0.6.0+rpt20251202
+[0:00:30.366809999] [1591] [1;32m INFO [1;37mIPAProxy [1;34mipa_proxy.cpp:180 [0mUsing tuning file /usr/share/libcamera/ipa/rpi/vc4/imx708.json
+[0:00:30.373660184] [1591] [1;32m INFO [1;37mCamera [1;34mcamera_manager.cpp:223 [0mAdding camera '/base/soc/i2c0mux/i2c@1/imx708@1a' for pipeline handler rpi/vc4
+[0:00:30.373747629] [1591] [1;32m INFO [1;37mRPI [1;34mvc4.cpp:445 [0mRegistered camera /base/soc/i2c0mux/i2c@1/imx708@1a to Unicam device /dev/media0 and ISP device /dev/media2
+[0:00:30.373811443] [1591] [1;32m INFO [1;37mRPI [1;34mpipeline_base.cpp:1111 [0mUsing configuration file '/usr/share/libcamera/pipeline/rpi/vc4/rpi_apps.yaml'
+[0:00:30.384946240] [1574] [1;32m INFO [1;37mCamera [1;34mcamera.cpp:1215 [0mconfiguring streams: (0) 4608x2592-RGB888/sRGB (1) 4608x2592-SBGGR10_CSI2P/RAW
+[0:00:30.385426481] [1591] [1;32m INFO [1;37mRPI [1;34mvc4.cpp:620 [0mSensor: /base/soc/i2c0mux/i2c@1/imx708@1a - Selected sensor format: 4608x2592-SBGGR10_1X10/RAW - Selected unicam format: 4608x2592-pBAA/RAW
+[P001] 2026-03-22T19:07:32+00:00 Recovery boot detected
