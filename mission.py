@@ -25,6 +25,8 @@ except ImportError:  # pragma: no cover
 
 REPO_ROOT = Path(__file__).resolve().parent
 IMAGES_DIR = REPO_ROOT / "Images"
+RUNTIME_DIR = IMAGES_DIR / "_mission_runtime"
+RUNTIME_REF_PATH = RUNTIME_DIR / "reference_fullres.png"
 LOG_PATH = IMAGES_DIR / "Log.txt"
 STATE_PATH = REPO_ROOT / "mission_state.json"
 CHANGE_NODE = REPO_ROOT / "change_detect.py"
@@ -174,6 +176,28 @@ def touch_flag(path: Path) -> None:
     path.write_text("", encoding="utf-8")
 
 
+def wait_for_reference_capture() -> None:
+    previous_mtime = RUNTIME_REF_PATH.stat().st_mtime if RUNTIME_REF_PATH.exists() else None
+
+    touch_flag(FLAG_SET_REF)
+
+    def reference_ready() -> bool:
+        if FLAG_SET_REF.exists():
+            return False
+        if not RUNTIME_REF_PATH.exists():
+            return False
+
+        current_mtime = RUNTIME_REF_PATH.stat().st_mtime
+        if previous_mtime is not None and current_mtime <= previous_mtime:
+            return False
+
+        if cv2 is None:
+            return True
+        return cv2.imread(str(RUNTIME_REF_PATH), cv2.IMREAD_COLOR) is not None
+
+    wait_for(reference_ready, NODE_READY_TIMEOUT_SEC, "reference image capture")
+
+
 def wait_for(predicate, timeout_sec: int, label: str) -> None:
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
@@ -261,6 +285,17 @@ def clamp_box(x: int, y: int, width: int, height: int, image_w: int, image_h: in
     return x, y, width, height
 
 
+def scale_box(box: tuple[int, int, int, int], src_shape: tuple[int, int], dst_shape: tuple[int, int]) -> tuple[int, int, int, int]:
+    src_h, src_w = src_shape[:2]
+    dst_h, dst_w = dst_shape[:2]
+    x, y, w, h = box
+    scaled_x = int(round(x * (dst_w / src_w)))
+    scaled_y = int(round(y * (dst_h / src_h)))
+    scaled_w = max(1, int(round(w * (dst_w / src_w))))
+    scaled_h = max(1, int(round(h * (dst_h / src_h))))
+    return clamp_box(scaled_x, scaled_y, scaled_w, scaled_h, dst_w, dst_h)
+
+
 def landing_box_size(image_shape: tuple[int, int, int]) -> tuple[int, int]:
     image_h, image_w = image_shape[:2]
     scale_x = image_w / 4608.0
@@ -322,16 +357,21 @@ def organize_bundle(pass_id: str, bundle_dir: Path) -> str:
         raise RuntimeError(f"Saved bundle in {bundle_dir} is missing required files")
 
     x, y, w, h = landing_zone_box(current_fullres)
+    bm_x, bm_y, bm_w, bm_h = scale_box((x, y, w, h), current_fullres.shape[:2], mask.shape[:2])
 
     binary_id = f"BM-{pass_id}"
     shutil.move(str(bundle_dir / "ref_fullres.png"), str(folder / "reference.png"))
     shutil.move(str(bundle_dir / "cur_fullres.png"), str(folder / "current.png"))
-    shutil.move(str(bundle_dir / "mask.png"), str(folder / f"{binary_id}.png"))
+    shutil.move(str(bundle_dir / "mask.png"), str(folder / "binary_mask_raw.png"))
     shutil.move(str(bundle_dir / "overlay.png"), str(folder / "overlay.png"))
     shutil.move(str(bundle_dir / "ref.png"), str(folder / "reference_preview.png"))
     shutil.move(str(bundle_dir / "cur.png"), str(folder / "current_preview.png"))
     if (bundle_dir / "meta.txt").exists():
         shutil.move(str(bundle_dir / "meta.txt"), str(folder / "change_detect_meta.txt"))
+
+    boxed_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+    cv2.rectangle(boxed_mask, (bm_x, bm_y), (bm_x + bm_w, bm_y + bm_h), (0, 255, 0), 2)
+    cv2.imwrite(str(folder / f"{binary_id}.png"), boxed_mask)
 
     boxed = current_fullres.copy()
     cv2.rectangle(boxed, (x, y), (x + w, y + h), (0, 255, 0), 8)
@@ -344,6 +384,7 @@ def organize_bundle(pass_id: str, bundle_dir: Path) -> str:
         "bundle_source": bundle_dir.name,
         "generated_utc": iso_now(),
         "roi_box": {"x": x, "y": y, "width": w, "height": h},
+        "bm_box": {"x": bm_x, "y": bm_y, "width": bm_w, "height": bm_h},
         "mask_size": {"width": mask.shape[1], "height": mask.shape[0]},
         "image_size": {"width": current_fullres.shape[1], "height": current_fullres.shape[0]},
         "landing_zone_method": "white-safe-area distance transform",
@@ -399,7 +440,7 @@ def start_reference_cycle(state: MissionState) -> None:
 
     append_log(pass_id, "POI locked")
     set_state(state, "POI_LOCKED", "Setting reference image in change-detect node")
-    touch_flag(FLAG_SET_REF)
+    wait_for_reference_capture()
     append_log(pass_id, "Reference image captured")
 
     time.sleep(PRE_SHUTDOWN_DELAY_SEC)
