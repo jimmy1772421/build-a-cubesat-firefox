@@ -23,7 +23,8 @@ DIFF_THRESHOLD = 25
 KERNEL_SIZE = 5
 MIN_BLOB_AREA = 250
 USE_CLAHE = False
-BRIGHT_WIN = 80
+WHITE_WIN = 80
+WHITE_PIXEL_THRESHOLD = 200
 LIVE_WRITE_EVERY_N_FRAMES = 3
 
 RUNTIME_REF_PATH = os.path.join(RUNTIME_DIR, "reference_fullres.png")
@@ -87,13 +88,29 @@ def compute_change(ref_g: np.ndarray, cur_proc_bgr: np.ndarray):
     return cleaned, overlay, changed_pct
 
 
-def brightest_square(bgr: np.ndarray, win: int = BRIGHT_WIN):
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
-    mean = cv2.boxFilter(gray, ddepth=-1, ksize=(win, win), normalize=True)
-    _, _, _, max_loc = cv2.minMaxLoc(mean)
-    x, y = max_loc
-    score = float(mean[y, x])
-    return x, y, win, score
+def whitest_square(bgr: np.ndarray, win: int = WHITE_WIN, white_thresh: int = WHITE_PIXEL_THRESHOLD):
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+
+    h, w = gray.shape
+    win = max(1, min(win, h, w))
+
+    white_mask = (gray >= white_thresh).astype(np.uint8)
+
+    # Integral image lets us compute white-pixel counts in every win x win box quickly.
+    integral = cv2.integral(white_mask, sdepth=cv2.CV_32S)
+
+    counts = (
+        integral[win:, win:]
+        - integral[:-win, win:]
+        - integral[win:, :-win]
+        + integral[:-win, :-win]
+    )
+
+    y, x = np.unravel_index(np.argmax(counts), counts.shape)
+    count = int(counts[y, x])
+    ratio = count / float(win * win)
+
+    return x, y, win, count, ratio
 
 
 def consume_flag(path: str) -> bool:
@@ -118,8 +135,8 @@ def load_runtime_reference():
         return None, None, None
     ref_proc_bgr = fullres_to_proc(ref_fullres_bgr)
     ref_g = preprocess_gray(ref_proc_bgr)
-    ref_bright = brightest_square(ref_proc_bgr, win=BRIGHT_WIN)
-    return ref_fullres_bgr, ref_g, ref_bright
+    ref_white = whitest_square(ref_proc_bgr, win=WHITE_WIN)
+    return ref_fullres_bgr, ref_g, ref_white
 
 
 def clear_runtime_reference():
@@ -130,7 +147,17 @@ def clear_runtime_reference():
             pass
 
 
-def save_bundle(ref_fullres_bgr, cur_fullres_bgr, ref_proc_bgr, cur_proc_bgr, mask, overlay, changed_pct, ref_bright, cur_bright):
+def save_bundle(
+    ref_fullres_bgr,
+    cur_fullres_bgr,
+    ref_proc_bgr,
+    cur_proc_bgr,
+    mask,
+    overlay,
+    changed_pct,
+    ref_white,
+    cur_white,
+):
     stamp = time.strftime("%Y%m%d_%H%M%S")
     out_dir = os.path.join(SAVE_ROOT_DIR, stamp)
     os.makedirs(out_dir, exist_ok=True)
@@ -150,13 +177,24 @@ def save_bundle(ref_fullres_bgr, cur_fullres_bgr, ref_proc_bgr, cur_proc_bgr, ma
         handle.write(f"kernel_size={KERNEL_SIZE}\n")
         handle.write(f"min_blob_area={MIN_BLOB_AREA}\n")
         handle.write(f"use_clahe={USE_CLAHE}\n")
-        handle.write(f"bright_win={BRIGHT_WIN}\n")
-        if ref_bright is not None:
-            rx, ry, rs, rscore = ref_bright
-            handle.write(f"ref_bright_x={rx}\nref_bright_y={ry}\nref_bright_s={rs}\nref_bright_score={rscore:.6f}\n")
-        if cur_bright is not None:
-            bx, by, bs, bscore = cur_bright
-            handle.write(f"cur_bright_x={bx}\ncur_bright_y={by}\ncur_bright_s={bs}\ncur_bright_score={bscore:.6f}\n")
+        handle.write(f"white_win={WHITE_WIN}\n")
+        handle.write(f"white_pixel_threshold={WHITE_PIXEL_THRESHOLD}\n")
+
+        if ref_white is not None:
+            rx, ry, rs, rcount, rratio = ref_white
+            handle.write(f"ref_white_x={rx}\n")
+            handle.write(f"ref_white_y={ry}\n")
+            handle.write(f"ref_white_s={rs}\n")
+            handle.write(f"ref_white_count={rcount}\n")
+            handle.write(f"ref_white_ratio={rratio:.6f}\n")
+
+        if cur_white is not None:
+            bx, by, bs, bcount, bratio = cur_white
+            handle.write(f"cur_white_x={bx}\n")
+            handle.write(f"cur_white_y={by}\n")
+            handle.write(f"cur_white_s={bs}\n")
+            handle.write(f"cur_white_count={bcount}\n")
+            handle.write(f"cur_white_ratio={bratio:.6f}\n")
 
     print(f"Saved bundle to: {out_dir}")
 
@@ -170,14 +208,15 @@ def write_live(ref_set: bool, cur_proc_bgr, mask, overlay, changed_pct: float):
         handle.write(f"changed_pct={changed_pct:.6f}\n")
 
 
-def annotate_bright_square(image: np.ndarray, bright):
-    if bright is None:
+def annotate_white_square(image: np.ndarray, white_info):
+    if white_info is None:
         return
-    x, y, size, score = bright
+
+    x, y, size, count, ratio = white_info
     cv2.rectangle(image, (x, y), (x + size, y + size), (0, 255, 255), 2)
     cv2.putText(
         image,
-        f"bright={score:.1f}",
+        f"white={count} ({ratio:.1%})",
         (x, max(0, y - 8)),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.5,
@@ -195,7 +234,7 @@ def main():
     time.sleep(1.0)
     lock_camera(picam2)
 
-    ref_fullres_bgr, ref_g, ref_bright = load_runtime_reference()
+    ref_fullres_bgr, ref_g, ref_white = load_runtime_reference()
     if ref_g is not None:
         print("Loaded persisted reference image.")
 
@@ -219,7 +258,7 @@ def main():
         if consume_flag(FLAG_CLEAR_REF):
             ref_fullres_bgr = None
             ref_g = None
-            ref_bright = None
+            ref_white = None
             clear_runtime_reference()
             print("Reference cleared.")
 
@@ -227,7 +266,7 @@ def main():
             ref_fullres_bgr = cur_fullres_bgr.copy()
             ref_proc_bgr = cur_proc_bgr.copy()
             ref_g = preprocess_gray(ref_proc_bgr)
-            ref_bright = brightest_square(ref_proc_bgr, win=BRIGHT_WIN)
+            ref_white = whitest_square(ref_proc_bgr, win=WHITE_WIN)
             save_runtime_reference(ref_fullres_bgr)
             print("Reference set and persisted.")
 
@@ -239,9 +278,15 @@ def main():
         else:
             mask, overlay, changed_pct = compute_change(ref_g, cur_proc_bgr)
 
-        cur_bright = brightest_square(cur_proc_bgr, win=BRIGHT_WIN)
-        annotate_bright_square(overlay, cur_bright)
-        cv2.rectangle(mask, (cur_bright[0], cur_bright[1]), (cur_bright[0] + cur_bright[2], cur_bright[1] + cur_bright[2]), 255, 2)
+        cur_white = whitest_square(cur_proc_bgr, win=WHITE_WIN)
+        annotate_white_square(overlay, cur_white)
+        cv2.rectangle(
+            mask,
+            (cur_white[0], cur_white[1]),
+            (cur_white[0] + cur_white[2], cur_white[1] + cur_white[2]),
+            255,
+            2,
+        )
 
         if consume_flag(FLAG_SAVE):
             if ref_g is None or ref_fullres_bgr is None:
@@ -249,7 +294,7 @@ def main():
             else:
                 ref_proc_bgr = fullres_to_proc(ref_fullres_bgr)
                 ref_annotated = ref_proc_bgr.copy()
-                annotate_bright_square(ref_annotated, ref_bright)
+                annotate_white_square(ref_annotated, ref_white)
                 save_bundle(
                     ref_fullres_bgr,
                     cur_fullres_bgr,
@@ -258,8 +303,8 @@ def main():
                     mask,
                     overlay,
                     changed_pct,
-                    ref_bright,
-                    cur_bright,
+                    ref_white,
+                    cur_white,
                 )
 
         frame_i += 1
@@ -276,17 +321,17 @@ def main():
             if key == ord("r"):
                 ref_fullres_bgr = cur_fullres_bgr.copy()
                 ref_g = preprocess_gray(cur_proc_bgr)
-                ref_bright = brightest_square(cur_proc_bgr, win=BRIGHT_WIN)
+                ref_white = whitest_square(cur_proc_bgr, win=WHITE_WIN)
                 save_runtime_reference(ref_fullres_bgr)
             if key == ord("c"):
                 ref_fullres_bgr = None
                 ref_g = None
-                ref_bright = None
+                ref_white = None
                 clear_runtime_reference()
             if key == ord("s") and ref_fullres_bgr is not None and ref_g is not None:
                 ref_proc_bgr = fullres_to_proc(ref_fullres_bgr)
                 ref_annotated = ref_proc_bgr.copy()
-                annotate_bright_square(ref_annotated, ref_bright)
+                annotate_white_square(ref_annotated, ref_white)
                 save_bundle(
                     ref_fullres_bgr,
                     cur_fullres_bgr,
@@ -295,8 +340,8 @@ def main():
                     mask,
                     overlay,
                     changed_pct,
-                    ref_bright,
-                    cur_bright,
+                    ref_white,
+                    cur_white,
                 )
 
         time.sleep(0.01)
