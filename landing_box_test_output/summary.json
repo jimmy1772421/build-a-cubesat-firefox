@@ -1,0 +1,29 @@
+{
+  "image_size": {
+    "width": 4608,
+    "height": 2592
+  },
+  "landing_box": {
+    "x": 3039,
+    "y": 1393,
+    "width": 1060,
+    "height": 1040
+  },
+  "expected_box": {
+    "x": 2850,
+    "y": 1350,
+    "width": 1400,
+    "height": 1000
+  },
+  "bm_size": {
+    "width": 960,
+    "height": 540
+  },
+  "bm_box": {
+    "x": 633,
+    "y": 290,
+    "width": 221,
+    "height": 217
+  },
+  "note": "The raw input image contains no guide rectangle. The intended landing zone is the large white region in the lower-right quadrant."
+}
