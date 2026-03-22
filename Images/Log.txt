@@ -1,0 +1,14 @@
+2026-03-22T16:16:14+00:00 Git pull skipped: repo is dirty
+[P001] 2026-03-22T16:16:22+00:00 Cubesat in orbit
+[P001] 2026-03-22T16:16:51+00:00 POI locked
+[P001] 2026-03-22T16:16:53+00:00 Reference image captured
+[P001] 2026-03-22T16:17:04+00:00 Preparing PiSugar shutdown and reboot
+[P001] 2026-03-22T16:17:04+00:00 Scheduling PiSugar test wake
+[P001] 2026-03-22T16:17:04+00:00 PiSugar response: rtc_test_wake: rtc_test_wake: wakeup after 1 min 30 sec
+[P001] 2026-03-22T16:17:04+00:00 Requesting system shutdown
+[P001] 2026-03-22T16:17:04+00:00 Recovery boot detected
+2026-03-22T16:17:29+00:00 Git pull skipped: repo is dirty
+[P001] 2026-03-22T16:17:38+00:00 Recovery boot detected
+[P001] 2026-03-22T16:19:39+00:00 Change-detect bundle saved to 20260322_121934
+[P001] 2026-03-22T16:19:43+00:00 Difference map saved as BM-P001
+[P001] 2026-03-22T16:19:43+00:00 Largest white region boxed
