@@ -40,7 +40,9 @@ PISUGAR_SOCKET = "/tmp/pisugar-server.sock"
 
 ROI_WIDTH = 1060
 ROI_HEIGHT = 1040
-SAFE_THRESHOLD = 200
+SAFE_THRESHOLD = 150
+MIN_SAFE_THRESHOLD = 10
+MIN_SAFE_DENSITY = 0.5
 REFERENCE_DELAY_SEC = 15
 PRE_SHUTDOWN_DELAY_SEC = 10
 POST_REBOOT_CAPTURE_DELAY_SEC = 15
@@ -305,35 +307,85 @@ def landing_box_size(image_shape: tuple[int, int, int]) -> tuple[int, int]:
     return width, height
 
 
-def safe_mask_from_image(bgr: np.ndarray) -> np.ndarray:
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    _, safe = cv2.threshold(gray, SAFE_THRESHOLD, 255, cv2.THRESH_BINARY)
+def safe_mask_from_gray(gray: np.ndarray, threshold: int = SAFE_THRESHOLD) -> np.ndarray:
+    _, safe = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
     kernel = np.ones((5, 5), np.uint8)
     safe = cv2.morphologyEx(safe, cv2.MORPH_OPEN, kernel)
     safe = cv2.morphologyEx(safe, cv2.MORPH_CLOSE, kernel)
     return safe
 
 
-def landing_zone_box(bgr: np.ndarray) -> tuple[int, int, int, int]:
+def safe_mask_from_image(bgr: np.ndarray, threshold: int = SAFE_THRESHOLD) -> np.ndarray:
+    return safe_mask_from_gray(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), threshold)
+
+
+def landing_zone_details(bgr: np.ndarray) -> dict:
     image_h, image_w = bgr.shape[:2]
     width, height = landing_box_size(bgr.shape)
-    safe = safe_mask_from_image(bgr)
+    window_area = width * height
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    threshold = SAFE_THRESHOLD
+    best_attempt = None
 
-    safe_f = (safe > 0).astype(np.float32)
-    integral = cv2.integral(safe_f)
+    while threshold >= MIN_SAFE_THRESHOLD:
+        safe = safe_mask_from_gray(gray, threshold)
+        safe_f = (safe > 0).astype(np.float32)
+        integral = cv2.integral(safe_f)
 
-    y_slots = image_h - height + 1
-    x_slots = image_w - width + 1
-    counts = (
-        integral[height : height + y_slots, width : width + x_slots]
-        - integral[0:y_slots, width : width + x_slots]
-        - integral[height : height + y_slots, 0:x_slots]
-        + integral[0:y_slots, 0:x_slots]
-    )
+        y_slots = image_h - height + 1
+        x_slots = image_w - width + 1
+        counts = (
+            integral[height : height + y_slots, width : width + x_slots]
+            - integral[0:y_slots, width : width + x_slots]
+            - integral[height : height + y_slots, 0:x_slots]
+            + integral[0:y_slots, 0:x_slots]
+        )
+        max_count = float(counts.max()) if counts.size else 0.0
+        flat_idx = int(np.argmax(counts)) if counts.size else 0
+        best_y, best_x = np.unravel_index(flat_idx, counts.shape) if counts.size else (0, 0)
+        safe_density = max_count / float(window_area) if window_area else 0.0
 
-    flat_idx = int(np.argmax(counts))
-    best_y, best_x = np.unravel_index(flat_idx, counts.shape)
-    return clamp_box(int(best_x), int(best_y), width, height, image_w, image_h)
+        attempt = {
+            "box": clamp_box(int(best_x), int(best_y), width, height, image_w, image_h),
+            "threshold_used": threshold,
+            "safe_pixels": int(round(max_count)),
+            "safe_density": safe_density,
+        }
+        if best_attempt is None or attempt["safe_pixels"] > best_attempt["safe_pixels"]:
+            best_attempt = attempt
+
+        if max_count > 0 and safe_density >= MIN_SAFE_DENSITY:
+            return {
+                **attempt,
+                "selection_status": "ok",
+                "selection_reason": "adaptive safe-area search",
+                "minimum_safe_density": MIN_SAFE_DENSITY,
+            }
+
+        threshold //= 2
+
+    fallback_box = clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
+    fallback = {
+        "box": fallback_box,
+        "threshold_used": best_attempt["threshold_used"] if best_attempt is not None else SAFE_THRESHOLD,
+        "safe_pixels": best_attempt["safe_pixels"] if best_attempt is not None else 0,
+        "safe_density": best_attempt["safe_density"] if best_attempt is not None else 0.0,
+        "selection_status": "fallback_center",
+        "selection_reason": "no threshold met minimum safe density",
+        "minimum_safe_density": MIN_SAFE_DENSITY,
+    }
+    if best_attempt is not None:
+        fallback["best_attempt_box"] = {
+            "x": best_attempt["box"][0],
+            "y": best_attempt["box"][1],
+            "width": best_attempt["box"][2],
+            "height": best_attempt["box"][3],
+        }
+    return fallback
+
+
+def landing_zone_box(bgr: np.ndarray) -> tuple[int, int, int, int]:
+    return landing_zone_details(bgr)["box"]
 
 
 def scale_component(component: Optional[dict], src_shape: tuple[int, int], dst_shape: tuple[int, int, int]) -> Optional[dict]:
@@ -361,8 +413,15 @@ def organize_bundle(pass_id: str, bundle_dir: Path) -> str:
     if mask is None or current_fullres is None:
         raise RuntimeError(f"Saved bundle in {bundle_dir} is missing required files")
 
-    x, y, w, h = landing_zone_box(current_fullres)
+    landing = landing_zone_details(current_fullres)
+    x, y, w, h = landing["box"]
     bm_x, bm_y, bm_w, bm_h = scale_box((x, y, w, h), current_fullres.shape[:2], mask.shape[:2])
+    if landing["selection_status"] != "ok":
+        append_log(
+            pass_id,
+            f"Landing zone fallback used: {landing['selection_reason']} "
+            f"(threshold={landing['threshold_used']}, safe_density={landing['safe_density']:.3f})",
+        )
 
     binary_id = f"BM-{pass_id}"
     shutil.move(str(bundle_dir / "ref_fullres.png"), str(folder / "reference.png"))
@@ -392,8 +451,16 @@ def organize_bundle(pass_id: str, bundle_dir: Path) -> str:
         "bm_box": {"x": bm_x, "y": bm_y, "width": bm_w, "height": bm_h},
         "mask_size": {"width": mask.shape[1], "height": mask.shape[0]},
         "image_size": {"width": current_fullres.shape[1], "height": current_fullres.shape[0]},
-        "landing_zone_method": "white-safe-area distance transform",
+        "landing_zone_method": "adaptive white-safe-area integral search",
+        "landing_threshold_used": landing["threshold_used"],
+        "landing_safe_pixels": landing["safe_pixels"],
+        "landing_safe_density": landing["safe_density"],
+        "landing_minimum_safe_density": landing["minimum_safe_density"],
+        "landing_selection_status": landing["selection_status"],
+        "landing_selection_reason": landing["selection_reason"],
     }
+    if "best_attempt_box" in landing:
+        meta["landing_best_attempt_box"] = landing["best_attempt_box"]
     with (folder / "meta.json").open("w", encoding="utf-8") as handle:
         json.dump(meta, handle, indent=2)
 
