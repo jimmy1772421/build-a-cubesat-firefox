@@ -11,7 +11,8 @@ WORK_RES = (1152, 648)
 DISPLAY_RES = (1280, 720)
 BOX_WIDTH_FULLRES = 1060
 BOX_HEIGHT_FULLRES = 1040
-SAFE_THRESHOLD = 200
+BRIGHT_THRESHOLD = 200
+MIN_BLOB_AREA = 50
 
 
 def lock_camera(picam2: Picamera2) -> None:
@@ -37,40 +38,48 @@ def clamp_box(x: int, y: int, width: int, height: int, image_w: int, image_h: in
     return x, y, width, height
 
 
-def safe_mask_from_image(bgr: np.ndarray) -> np.ndarray:
+def bright_mask_from_image(bgr: np.ndarray) -> np.ndarray:
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    _, safe = cv2.threshold(gray, SAFE_THRESHOLD, 255, cv2.THRESH_BINARY)
+    _, safe = cv2.threshold(gray, BRIGHT_THRESHOLD, 255, cv2.THRESH_BINARY)
     kernel = np.ones((5, 5), np.uint8)
     safe = cv2.morphologyEx(safe, cv2.MORPH_OPEN, kernel)
     safe = cv2.morphologyEx(safe, cv2.MORPH_CLOSE, kernel)
     return safe
 
 
-def landing_zone_box(fullres_bgr: np.ndarray) -> tuple[int, int, int, int]:
+def largest_blob_center(mask: np.ndarray) -> tuple[int, int] | None:
+    num_labels, _, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    best_idx = None
+    best_area = 0
+    for idx in range(1, num_labels):
+        area = int(stats[idx, cv2.CC_STAT_AREA])
+        if area < MIN_BLOB_AREA:
+            continue
+        if area > best_area:
+            best_area = area
+            best_idx = idx
+    if best_idx is None:
+        return None
+    cx, cy = centroids[best_idx]
+    return int(round(cx)), int(round(cy))
+
+
+def tracking_box(fullres_bgr: np.ndarray) -> tuple[int, int, int, int]:
     image_h, image_w = fullres_bgr.shape[:2]
     width = min(max(1, BOX_WIDTH_FULLRES), image_w)
     height = min(max(1, BOX_HEIGHT_FULLRES), image_h)
 
     work_bgr = cv2.resize(fullres_bgr, WORK_RES, interpolation=cv2.INTER_AREA)
-    safe = safe_mask_from_image(work_bgr)
-
-    work_h, work_w = safe.shape[:2]
-    kernel_w = max(1, int(round(width * (work_w / image_w))))
-    kernel_h = max(1, int(round(height * (work_h / image_h))))
-    kernel = np.ones((kernel_h, kernel_w), np.uint8)
-    centers = cv2.erode(safe, kernel, iterations=1)
-
-    if np.count_nonzero(centers) == 0:
+    mask = bright_mask_from_image(work_bgr)
+    center = largest_blob_center(mask)
+    if center is None:
         return clamp_box((image_w - width) // 2, (image_h - height) // 2, width, height, image_w, image_h)
 
-    distance = cv2.distanceTransform(centers, cv2.DIST_L2, 5)
-    _, _, _, max_loc = cv2.minMaxLoc(distance)
-    cx_work, cy_work = max_loc
-
+    work_h, work_w = mask.shape[:2]
     scale_x = image_w / work_w
     scale_y = image_h / work_h
-    cx = int(round(cx_work * scale_x))
-    cy = int(round(cy_work * scale_y))
+    cx = int(round(center[0] * scale_x))
+    cy = int(round(center[1] * scale_y))
     return clamp_box(int(round(cx - width / 2.0)), int(round(cy - height / 2.0)), width, height, image_w, image_h)
 
 
@@ -89,7 +98,7 @@ def main() -> None:
         rgb = picam2.capture_array()
         fullres = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
-        x, y, w, h = landing_zone_box(fullres)
+        x, y, w, h = tracking_box(fullres)
 
         display = cv2.resize(fullres, DISPLAY_RES, interpolation=cv2.INTER_AREA)
         scale_x = display.shape[1] / fullres.shape[1]
