@@ -11,16 +11,10 @@
       "mask": "Images\\P002\\BM-P002.png",
       "base": "Images\\P002\\current.png",
       "source": "pass"
-    },
-    {
-      "id": "P003",
-      "mask": "Images\\P003\\BM-P003.png",
-      "base": "Images\\P003\\current.png",
-      "source": "pass"
     }
   ],
-  "entry_count": 3,
-  "max_overlap_count": 3,
+  "entry_count": 2,
+  "max_overlap_count": 2,
   "image_size": {
     "width": 4608,
     "height": 2592
