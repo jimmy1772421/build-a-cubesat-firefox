@@ -92,3 +92,17 @@
 [P007] 2026-03-22T15:51:14+00:00 Change-detect bundle saved to 20260322_115109
 [P007] 2026-03-22T15:51:17+00:00 Difference map saved as BM-P007
 [P007] 2026-03-22T15:51:17+00:00 Largest white region boxed
+[P007] 2026-03-22T15:51:43+00:00 Git push completed
+[P008] 2026-03-22T15:51:44+00:00 Cubesat in orbit
+[P008] 2026-03-22T15:51:59+00:00 POI locked
+[P008] 2026-03-22T15:52:01+00:00 Reference image captured
+[P008] 2026-03-22T15:52:11+00:00 Preparing PiSugar shutdown and reboot
+[P008] 2026-03-22T15:52:11+00:00 Scheduling PiSugar test wake
+[P008] 2026-03-22T15:52:11+00:00 PiSugar response: rtc_test_wake: rtc_test_wake: wakeup after 1 min 30 sec
+[P008] 2026-03-22T15:52:11+00:00 Requesting system shutdown
+[P008] 2026-03-22T15:52:11+00:00 Recovery boot detected
+2026-03-22T15:52:36+00:00 Git pull skipped: repo is dirty
+[P008] 2026-03-22T15:52:45+00:00 Recovery boot detected
+[P008] 2026-03-22T15:54:45+00:00 Change-detect bundle saved to 20260322_115441
+[P008] 2026-03-22T15:54:48+00:00 Difference map saved as BM-P008
+[P008] 2026-03-22T15:54:48+00:00 Largest white region boxed
